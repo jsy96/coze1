@@ -22,6 +22,13 @@ interface Product {
 }
 ```
 
+## 环境变量配置
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
 ## 数据库配置
 
 ### 表结构
@@ -44,7 +51,7 @@ src/
 │   └── utils.ts           # 通用工具
 ├── components/ui/         # shadcn/ui 组件库
 └── storage/database/
-    └── supabase-client-browser.ts  # 浏览器端 Supabase 客户端
+    └── supabase-client-browser.ts  # Supabase 客户端
 ```
 
 ## 常用命令
@@ -73,6 +80,6 @@ pnpm start
 
 ## 注意事项
 
-1. **Supabase 客户端**: 使用 `supabase-client-browser.ts`，专为浏览器环境优化
-2. **环境变量**: Supabase 凭据通过 Coze 平台自动注入
+1. **Supabase 客户端**: 使用 `supabase-client-browser.ts`，通过 `NEXT_PUBLIC_` 环境变量配置
+2. **环境变量**: 需要在 `.env.local` 中配置或 Vercel 环境变量中设置
 3. **错误处理**: 所有数据库操作都有错误处理和提示
