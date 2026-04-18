@@ -1,6 +1,6 @@
 'use client';
 
-import { getSupabaseClient } from '@/storage/database/supabase-client-browser';
+import { getSupabaseClient } from '@/lib/supabase';
 
 // 产品类型
 export interface Product {

@@ -3,8 +3,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 let cachedClient: SupabaseClient | null = null;
-let cachedUrl = '';
-let cachedKey = '';
 
 let configPromise: Promise<{ url: string; anonKey: string }> | null = null;
 
@@ -35,8 +33,7 @@ async function getConfig(): Promise<{ url: string; anonKey: string }> {
 				}
 				return data;
 			})
-			.catch((e) => {
-				console.error('Failed to load config:', e);
+			.catch(() => {
 				return { url: '', anonKey: '' };
 			});
 	}
@@ -50,22 +47,16 @@ async function getConfig(): Promise<{ url: string; anonKey: string }> {
 async function getSupabaseClient(): Promise<SupabaseClient> {
 	const { url, anonKey } = await getConfig();
 
-	// 如果 URL 和 Key 没变，使用缓存
-	if (cachedClient && cachedUrl === url && cachedKey === anonKey) {
-		return cachedClient;
-	}
-
 	if (!url || !anonKey) {
 		throw new Error(
 			'Supabase credentials not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.'
 		);
 	}
 
-	console.log('[Supabase] Creating new client...');
-
-	cachedClient = createClient(url, anonKey);
-	cachedUrl = url;
-	cachedKey = anonKey;
+	// 缓存客户端实例
+	if (!cachedClient) {
+		cachedClient = createClient(url, anonKey);
+	}
 
 	return cachedClient;
 }

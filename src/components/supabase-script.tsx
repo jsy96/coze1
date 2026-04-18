@@ -6,6 +6,11 @@ export function SupabaseScript() {
 	const [script, setScript] = useState('');
 
 	useEffect(() => {
+		// 只在开发环境且没有 NEXT_PUBLIC_ 环境变量时使用
+		if (process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('your-project')) {
+			return;
+		}
+
 		// 客户端时从 API 获取配置
 		fetch('/api/config')
 			.then((res) => res.json())
