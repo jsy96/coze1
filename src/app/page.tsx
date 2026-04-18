@@ -116,24 +116,32 @@ export default function ProductsPage() {
 		const text = await file.text();
 		const ext = file.name.split('.').pop()?.toLowerCase();
 
-		if (ext === 'json') {
-			const data = JSON.parse(text);
-			return Array.isArray(data) ? data : [data];
-		} else if (ext === 'csv') {
-			const lines = text.split('\n').filter(line => line.trim());
+		// 通用解析函数：根据分隔符解析
+		const parseDelimitedText = (content: string, delimiter: string) => {
+			const lines = content.split('\n').filter(line => line.trim());
 			const hasHeader = lines[0]?.toLowerCase().includes('product') || lines[0]?.toLowerCase().includes('hs');
 			const startIndex = hasHeader ? 1 : 0;
 
 			return lines.slice(startIndex).map(line => {
-				const parts = line.split(',').map(p => p.trim());
+				const parts = line.split(delimiter).map(p => p.trim());
 				if (parts.length >= 2) {
 					return { product_name: parts[0], hs_code: parts[1] };
 				}
 				return null;
 			}).filter((item): item is { product_name: string; hs_code: string } => item !== null);
+		};
+
+		if (ext === 'json') {
+			const data = JSON.parse(text);
+			return Array.isArray(data) ? data : [data];
+		} else if (ext === 'csv') {
+			return parseDelimitedText(text, ',');
+		} else if (ext === 'txt') {
+			// txt 文件使用 tab 分隔
+			return parseDelimitedText(text, '\t');
 		}
 
-		throw new Error('不支持的文件格式，请使用 CSV 或 JSON');
+		throw new Error('不支持的文件格式，请使用 CSV、TXT 或 JSON');
 	};
 
 	// 处理导入
@@ -391,7 +399,7 @@ export default function ProductsPage() {
 							<div className="relative">
 								<input
 									type="file"
-									accept=".csv,.json"
+									accept=".csv,.json,.txt"
 									onChange={(e) => setImportFile(e.target.files?.[0] || null)}
 									className="hidden"
 									id="file-upload"
@@ -416,7 +424,7 @@ export default function ProductsPage() {
 										<>
 											<Upload className="w-8 h-8 text-gray-400 mb-2" />
 											<span className="text-sm text-gray-600 dark:text-gray-400">点击上传或拖拽文件</span>
-											<span className="text-xs text-gray-400 dark:text-gray-500 mt-1">支持 CSV、JSON 格式</span>
+											<span className="text-xs text-gray-400 dark:text-gray-500 mt-1">支持 CSV、TXT (Tab分隔)、JSON 格式</span>
 										</>
 									)}
 								</label>
