@@ -69,3 +69,32 @@ export async function searchProducts(keyword: string): Promise<Product[]> {
 	if (error) throw new Error(`搜索产品失败: ${error.message}`);
 	return data || [];
 }
+
+// 批量导入产品
+export async function bulkImportProducts(products: Array<{ product_name: string; hs_code: string }>): Promise<{ success: number; failed: number; errors: string[] }> {
+	const client = await getSupabaseClient();
+	const results = { success: 0, failed: 0, errors: [] as string[] };
+
+	for (let i = 0; i < products.length; i++) {
+		const { product_name, hs_code } = products[i];
+		if (!product_name?.trim() || !hs_code?.trim()) {
+			results.failed++;
+			results.errors.push(`第 ${i + 1} 行: 数据不完整`);
+			continue;
+		}
+
+		try {
+			const { error } = await client
+				.from('products')
+				.insert({ product_name: product_name.trim(), hs_code: hs_code.trim() });
+
+			if (error) throw error;
+			results.success++;
+		} catch (err) {
+			results.failed++;
+			results.errors.push(`第 ${i + 1} 行 (${product_name}): ${err instanceof Error ? err.message : '导入失败'}`);
+		}
+	}
+
+	return results;
+}

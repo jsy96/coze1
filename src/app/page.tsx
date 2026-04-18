@@ -18,9 +18,9 @@ import {
 	AlertDialogTitle,
 	AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
-import { Search, Plus, Pencil, Trash2, X, Check } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, X, Check, Upload, FileText, Download } from 'lucide-react';
 import type { Product } from '@/lib/products';
-import { getProducts, createProduct, updateProduct, deleteProduct, searchProducts } from '@/lib/products';
+import { getProducts, createProduct, updateProduct, deleteProduct, searchProducts, bulkImportProducts } from '@/lib/products';
 
 export default function ProductsPage() {
 	const [products, setProducts] = useState<Product[]>([]);
@@ -39,6 +39,12 @@ export default function ProductsPage() {
 
 	// 删除状态
 	const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+
+	// 导入状态
+	const [importDialogOpen, setImportDialogOpen] = useState(false);
+	const [importFile, setImportFile] = useState<File | null>(null);
+	const [importing, setImporting] = useState(false);
+	const [importResult, setImportResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
 
 	// 加载数据
 	const loadProducts = useCallback(async () => {
@@ -105,6 +111,68 @@ export default function ProductsPage() {
 		}
 	};
 
+	// 解析导入文件
+	const parseImportFile = async (file: File): Promise<Array<{ product_name: string; hs_code: string }>> => {
+		const text = await file.text();
+		const ext = file.name.split('.').pop()?.toLowerCase();
+
+		if (ext === 'json') {
+			const data = JSON.parse(text);
+			return Array.isArray(data) ? data : [data];
+		} else if (ext === 'csv') {
+			const lines = text.split('\n').filter(line => line.trim());
+			const hasHeader = lines[0]?.toLowerCase().includes('product') || lines[0]?.toLowerCase().includes('hs');
+			const startIndex = hasHeader ? 1 : 0;
+
+			return lines.slice(startIndex).map(line => {
+				const parts = line.split(',').map(p => p.trim());
+				if (parts.length >= 2) {
+					return { product_name: parts[0], hs_code: parts[1] };
+				}
+				return null;
+			}).filter((item): item is { product_name: string; hs_code: string } => item !== null);
+		}
+
+		throw new Error('不支持的文件格式，请使用 CSV 或 JSON');
+	};
+
+	// 处理导入
+	const handleImport = async () => {
+		if (!importFile) return;
+
+		setImporting(true);
+		setImportResult(null);
+
+		try {
+			const products = await parseImportFile(importFile);
+			const result = await bulkImportProducts(products);
+			setImportResult(result);
+
+			if (result.failed === 0) {
+				setTimeout(() => {
+					setImportDialogOpen(false);
+					setImportFile(null);
+					setImportResult(null);
+					loadProducts();
+				}, 1500);
+			}
+		} catch (err) {
+			alert(err instanceof Error ? err.message : '导入失败');
+		} finally {
+			setImporting(false);
+		}
+	};
+
+	// 下载模板
+	const downloadTemplate = () => {
+		const csvContent = 'product_name,hs_code\nExample Product 1,1234.56\nExample Product 2,7890.12';
+		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+		const link = document.createElement('a');
+		link.href = URL.createObjectURL(blob);
+		link.download = 'import_template.csv';
+		link.click();
+	};
+
 	return (
 		<div className="min-h-screen bg-gray-50 dark:bg-gray-900">
 			{/* 顶部导航 */}
@@ -114,10 +182,16 @@ export default function ProductsPage() {
 						<h1 className="text-2xl font-bold text-gray-900 dark:text-white">
 							产品 HS 编码管理
 						</h1>
-						<Button onClick={() => setAddDialogOpen(true)} className="gap-2">
-							<Plus className="w-4 h-4" />
-							新增产品
-						</Button>
+						<div className="flex items-center gap-2">
+							<Button onClick={() => setImportDialogOpen(true)} variant="outline" className="gap-2">
+								<Upload className="w-4 h-4" />
+								批量导入
+							</Button>
+							<Button onClick={() => setAddDialogOpen(true)} className="gap-2">
+								<Plus className="w-4 h-4" />
+								新增产品
+							</Button>
+						</div>
 					</div>
 				</div>
 			</header>
@@ -285,6 +359,117 @@ export default function ProductsPage() {
 						</Button>
 						<Button onClick={handleSave} disabled={!editForm.product_name.trim() || !editForm.hs_code.trim()}>
 							保存
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* 批量导入弹窗 */}
+			<Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+				<DialogContent className="sm:max-w-lg">
+					<DialogHeader>
+						<DialogTitle>批量导入产品</DialogTitle>
+					</DialogHeader>
+					<div className="space-y-4 py-4">
+						{/* 下载模板 */}
+						<div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+							<div className="flex items-center gap-2">
+								<FileText className="w-4 h-4 text-gray-500" />
+								<span className="text-sm text-gray-600 dark:text-gray-400">下载导入模板</span>
+							</div>
+							<Button onClick={downloadTemplate} variant="outline" size="sm" className="gap-1">
+								<Download className="w-3 h-3" />
+								下载
+							</Button>
+						</div>
+
+						{/* 文件上传 */}
+						<div className="space-y-2">
+							<label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+								选择文件
+							</label>
+							<div className="relative">
+								<input
+									type="file"
+									accept=".csv,.json"
+									onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+									className="hidden"
+									id="file-upload"
+								/>
+								<label
+									htmlFor="file-upload"
+									className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+										importFile
+											? 'border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900/20'
+											: 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800 hover:border-gray-400 dark:hover:border-gray-500'
+									}`}
+								>
+									{importFile ? (
+										<>
+											<Check className="w-8 h-8 text-green-500 mb-2" />
+											<span className="text-sm text-gray-700 dark:text-gray-300">{importFile.name}</span>
+											<span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+												{(importFile.size / 1024).toFixed(1)} KB
+											</span>
+										</>
+									) : (
+										<>
+											<Upload className="w-8 h-8 text-gray-400 mb-2" />
+											<span className="text-sm text-gray-600 dark:text-gray-400">点击上传或拖拽文件</span>
+											<span className="text-xs text-gray-400 dark:text-gray-500 mt-1">支持 CSV、JSON 格式</span>
+										</>
+									)}
+								</label>
+							</div>
+						</div>
+
+						{/* 导入结果 */}
+						{importResult && (
+							<div className={`p-4 rounded-lg border ${
+								importResult.failed === 0
+									? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
+									: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800'
+							}`}>
+								<div className="flex items-center gap-2 mb-2">
+									{importResult.failed === 0 ? (
+										<Check className="w-5 h-5 text-green-600 dark:text-green-400" />
+									) : (
+										<X className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+									)}
+									<span className="font-medium text-gray-900 dark:text-white">
+										导入完成
+									</span>
+								</div>
+								<div className="text-sm text-gray-600 dark:text-gray-400">
+									成功: <span className="font-medium text-green-600 dark:text-green-400">{importResult.success}</span> 条，
+									失败: <span className={`font-medium ${importResult.failed > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-500'}`}>{importResult.failed}</span> 条
+								</div>
+								{importResult.errors.length > 0 && (
+									<div className="mt-3 max-h-32 overflow-y-auto">
+										<div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">错误详情:</div>
+										{importResult.errors.map((error, i) => (
+											<div key={i} className="text-xs text-red-600 dark:text-red-400 truncate">
+												{error}
+											</div>
+										))}
+									</div>
+								)}
+							</div>
+						)}
+					</div>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => {
+							setImportDialogOpen(false);
+							setImportFile(null);
+							setImportResult(null);
+						}}>
+							{importResult && importResult.failed === 0 ? '完成' : '取消'}
+						</Button>
+						<Button
+							onClick={handleImport}
+							disabled={!importFile || importing}
+						>
+							{importing ? '导入中...' : '开始导入'}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
