@@ -57,18 +57,29 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({
-  children,
+	children,
 }: Readonly<{
-  children: React.ReactNode;
+	children: React.ReactNode;
 }>) {
-  const isDev = process.env.COZE_PROJECT_ENV === 'DEV';
+	const isDev = process.env.COZE_PROJECT_ENV === 'DEV';
 
-  return (
-    <html lang="en">
-      <body className={`antialiased`}>
-        {isDev && <Inspector />}
-        {children}
-      </body>
-    </html>
-  );
+	// 注入 Supabase 凭据到客户端
+	const supabaseScript = `
+		try {
+			window.__SUPABASE_URL = '${process.env.COZE_SUPABASE_URL || ''}';
+			window.__SUPABASE_ANON_KEY = '${process.env.COZE_SUPABASE_ANON_KEY || ''}';
+		} catch(e) {}
+	`;
+
+	return (
+		<html lang="en">
+			<head>
+				<script dangerouslySetInnerHTML={{ __html: supabaseScript }} />
+			</head>
+			<body className={`antialiased`}>
+				{isDev && <Inspector />}
+				{children}
+			</body>
+		</html>
+	);
 }
