@@ -12,7 +12,7 @@ export interface Product {
 
 // 创建产品
 export async function createProduct(product_name: string, hs_code: string): Promise<Product> {
-	const client = getSupabaseClient();
+	const client = await getSupabaseClient();
 	const { data, error } = await client
 		.from('products')
 		.insert({ product_name, hs_code })
@@ -25,7 +25,7 @@ export async function createProduct(product_name: string, hs_code: string): Prom
 
 // 获取所有产品
 export async function getProducts(): Promise<Product[]> {
-	const client = getSupabaseClient();
+	const client = await getSupabaseClient();
 	const { data, error } = await client
 		.from('products')
 		.select('*')
@@ -37,7 +37,7 @@ export async function getProducts(): Promise<Product[]> {
 
 // 更新产品
 export async function updateProduct(id: number, product_name: string, hs_code: string): Promise<Product> {
-	const client = getSupabaseClient();
+	const client = await getSupabaseClient();
 	const { data, error } = await client
 		.from('products')
 		.update({ product_name, hs_code })
@@ -51,7 +51,7 @@ export async function updateProduct(id: number, product_name: string, hs_code: s
 
 // 删除产品
 export async function deleteProduct(id: number): Promise<void> {
-	const client = getSupabaseClient();
+	const client = await getSupabaseClient();
 	const { error } = await client.from('products').delete().eq('id', id);
 
 	if (error) throw new Error(`删除产品失败: ${error.message}`);
@@ -59,7 +59,7 @@ export async function deleteProduct(id: number): Promise<void> {
 
 // 搜索产品
 export async function searchProducts(keyword: string): Promise<Product[]> {
-	const client = getSupabaseClient();
+	const client = await getSupabaseClient();
 	const { data, error } = await client
 		.from('products')
 		.select('*')
