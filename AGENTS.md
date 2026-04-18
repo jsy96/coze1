@@ -1,65 +1,78 @@
 # 项目上下文
 
-### 版本技术栈
+## 项目简介
 
-- **Framework**: Next.js 16 (App Router)
-- **Core**: React 19
-- **Language**: TypeScript 5
-- **UI 组件**: shadcn/ui (基于 Radix UI)
-- **Styling**: Tailwind CSS 4
+**产品 HS 编码管理系统** - 用于管理产品英文名称和 HS 海关编码的增删查改工具。
 
-## 目录结构
+### 技术栈
+- **框架**: Next.js 16 (App Router)
+- **数据库**: Supabase PostgreSQL
+- **UI**: shadcn/ui + Tailwind CSS 4
+- **包管理**: pnpm
 
-```
-├── public/                 # 静态资源
-├── scripts/                # 构建与启动脚本
-│   ├── build.sh            # 构建脚本
-│   ├── dev.sh              # 开发环境启动脚本
-│   ├── prepare.sh          # 预处理脚本
-│   └── start.sh            # 生产环境启动脚本
-├── src/
-│   ├── app/                # 页面路由与布局
-│   ├── components/ui/      # Shadcn UI 组件库
-│   ├── hooks/              # 自定义 Hooks
-│   ├── lib/                # 工具库
-│   │   └── utils.ts        # 通用工具函数 (cn)
-│   └── server.ts           # 自定义服务端入口
-├── next.config.ts          # Next.js 配置
-├── package.json            # 项目依赖管理
-└── tsconfig.json           # TypeScript 配置
+### 数据模型
+
+```typescript
+// products 表
+interface Product {
+  id: number;           // 自增主键
+  product_name: string;  // 英文品名 (varchar 500)
+  hs_code: string;      // HS 编码 (varchar 20)
+  created_at: string;   // 创建时间
+}
 ```
 
-- 项目文件（如 app 目录、pages 目录、components 等）默认初始化到 `src/` 目录下。
+## 数据库配置
 
-## 包管理规范
+### 表结构
+- **表名**: `products`
+- **主键**: `id` (serial)
+- **索引**: `product_name` (支持模糊搜索), `hs_code`
 
-**仅允许使用 pnpm** 作为包管理器，**严禁使用 npm 或 yarn**。
-**常用命令**：
-- 安装依赖：`pnpm add <package>`
-- 安装开发依赖：`pnpm add -D <package>`
-- 安装所有依赖：`pnpm install`
-- 移除依赖：`pnpm remove <package>`
+### RLS 策略
+- 场景 A: 公开读写（无需登录）
+- 所有操作无需认证即可执行
 
-## 开发规范
+## 文件结构
 
-### 编码规范
+```
+src/
+├── app/
+│   └── page.tsx           # 产品管理主页面
+├── lib/
+│   ├── products.ts        # 产品 CRUD 操作函数
+│   └── utils.ts           # 通用工具
+├── components/ui/         # shadcn/ui 组件库
+└── storage/database/
+    └── supabase-client-browser.ts  # 浏览器端 Supabase 客户端
+```
 
-- 默认按 TypeScript `strict` 心智写代码；优先复用当前作用域已声明的变量、函数、类型和导入，禁止引用未声明标识符或拼错变量名。
-- 禁止隐式 `any` 和 `as any`；函数参数、返回值、解构项、事件对象、`catch` 错误在使用前应有明确类型或先完成类型收窄，并清理未使用的变量和导入。
+## 常用命令
 
-### next.config 配置规范
+```bash
+# 安装依赖
+pnpm install
 
-- 配置的路径不要写死绝对路径，必须使用 path.resolve(__dirname, ...)、import.meta.dirname 或 process.cwd() 动态拼接。
+# 开发环境
+pnpm dev
 
-### Hydration 问题防范
+# 构建生产版本
+pnpm build
 
-1. 严禁在 JSX 渲染逻辑中直接使用 typeof window、Date.now()、Math.random() 等动态数据。**必须使用 'use client' 并配合 useEffect + useState 确保动态内容仅在客户端挂载后渲染**；同时严禁非法 HTML 嵌套（如 <p> 嵌套 <div>）。
-2. **禁止使用 head 标签**，优先使用 metadata，详见文档：https://nextjs.org/docs/app/api-reference/functions/generate-metadata
-   1. 三方 CSS、字体等资源可在 `globals.css` 中顶部通过 `@import` 引入或使用 next/font
-   2. preload, preconnect, dns-prefetch 通过 ReactDOM 的 preload、preconnect、dns-prefetch 方法引入
-   3. json-ld 可阅读 https://nextjs.org/docs/app/guides/json-ld
+# 启动生产环境
+pnpm start
+```
 
-## UI 设计与组件规范 (UI & Styling Standards)
+## 功能特性
 
-- 模板默认预装核心组件库 `shadcn/ui`，位于`src/components/ui/`目录下
-- Next.js 项目**必须默认**采用 shadcn/ui 组件、风格和规范，**除非用户指定用其他的组件和规范。**
+- ✅ 列表展示 - 分页展示所有产品
+- ✅ 新增产品 - 弹窗表单添加新产品
+- ✅ 编辑产品 - 点击编辑按钮修改产品信息
+- ✅ 删除确认 - 二次确认后删除
+- ✅ 搜索筛选 - 支持按品名或 HS 编码搜索
+
+## 注意事项
+
+1. **Supabase 客户端**: 使用 `supabase-client-browser.ts`，专为浏览器环境优化
+2. **环境变量**: Supabase 凭据通过 Coze 平台自动注入
+3. **错误处理**: 所有数据库操作都有错误处理和提示
